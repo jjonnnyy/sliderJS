@@ -1,10 +1,4 @@
-<!-- Slider puzzle game
-
-NOTES: start mechanism needs to be changed
-most start positions are not solvable.
-
-Instead make number of moves (without animation to scramble up the board)?
--->
+<!-- Slider puzzle game -->
 
 <script src="jquery-2.1.4.min.js"></script>
 <style>
@@ -12,7 +6,7 @@ Instead make number of moves (without animation to scramble up the board)?
            width: 401px;
            height: 401px;
            margin: auto;
-           top: 15%;
+           top: 10%;
            background-color: black; }
 
   .piece { position: absolute;
@@ -33,98 +27,117 @@ $(document).ready(function() {
   var startAnimation = 750;
   var moveSpeed = 100;
 
+  var movesMade = 0;
+
   $('#board').css({width: tileSize*boardWidth+1,
                    height: tileSize*boardHeight+1});
-
-  var tilePositions = {}; // Tracks tiles
 
   // Create elements
   // ex: <div class="piece">4</div>
   var numbers = [];
-  for (var i = 1; i < (boardWidth*boardHeight); i++)
+  for (var i = 1; i < (boardWidth*boardHeight); i++) {
     numbers.push(i);
+    $('#board').append($('<div class="piece" id="'+i+'">').text(i));
+  }
+  numbers.push(0); // blank tile
 
-  var i = 1;
-  while(numbers.length > 0) {
-    var index = Math.floor(Math.random() * numbers.length);
-    var value = numbers.splice(index, 1)[0];
-    tilePositions[value] = i++;
-    $('#board').append($('<div class="piece">').text(value));
+  function getPosition(number) {
+    var index = numbers.indexOf(Number(number));
+    var x = index % boardWidth;
+    var y = Math.floor(index / boardWidth);
+    return { index: index, x: x, y: y };
+  }
+
+  function moveTile(num, updateDOM) {
+    tile = getPosition(num);
+    blank = getPosition(0);
+
+    // console.log(num);
+    // console.log("Tile:", tile);
+    // console.log("Blank:", blank);
+
+    move = 'none';
+    if (tile.x == blank.x && tile.y == blank.y + 1) move = 'up';
+    if (tile.x == blank.x && tile.y == blank.y - 1) move = 'down';
+    if (tile.x == blank.x + 1 && tile.y == blank.y) move = 'left';
+    if (tile.x == blank.x - 1 && tile.y == blank.y) move = 'right';
+    // console.log (move);
+
+    // Swap positions
+    if (move != 'none') {
+      numbers[tile.index] = 0;
+      numbers[blank.index] = Number(num);
+    }
+
+    if (updateDOM) {
+      // Move tiles
+      tileElement = $('#'+num);
+      if (move == 'up') {
+        //console.log("Moving up!");
+        tileElement.animate({top:"-="+tileSize},
+                        {duaration: moveSpeed,
+                         complete: testComplete});
+      } else if (move == 'down') {
+        //console.log("Moving down!");
+        tileElement.animate({top:"+="+tileSize},
+                        {duaration: moveSpeed,
+                         complete: testComplete});
+      } else if (move == 'left') {
+        //console.log("Moving left!");
+        tileElement.animate({left:"-="+tileSize},
+                        {duaration: moveSpeed,
+                         complete: testComplete});
+      } else if (move == 'right') {
+        //console.log("Moving right!");
+        tileElement.animate({left:"+="+tileSize},
+                        {duaration: moveSpeed,
+                         complete: testComplete});
+      }
+    }
+    return move;
+  }
+
+  // Mess up board
+  var randMovesLeft = 500;
+  while(randMovesLeft > 0) {
+    var tileToMove = Math.random()*boardWidth*boardHeight;
+    tileToMove = Math.floor(tileToMove);
+    var result = moveTile(tileToMove, false);
+    if (result != 'none') randMovesLeft--;
   }
 
   // Layout board
-  $('.piece').each(function(index) {
-    var top = Math.floor(index / boardWidth) * tileSize;
-    var left = index % boardWidth * tileSize;
-    $(this).delay(50*index).animate({
+  numbers.forEach(function(num, index) {
+    console.log(num);
+    var pos = getPosition(num);
+    var top = pos.y * tileSize;
+    var left = pos.x * tileSize;
+    $('#'+num).delay(50*index).animate({
       left: left,
       top: top
     }, startAnimation);
   });
 
   // Function to test for completion
+  var movesAnimated = 0; // Prevents early completion
   function testComplete() {
-    var inPosition = true;
-    for (var i=1; i<(boardWidth*boardHeight); i++) {
-      if (tilePositions[i] != i) inPosition = false;
+    if (movesMade > 0 && movesMade == ++movesAnimated) {
+      var inPosition = true;
+      for (var i=1; i<(boardWidth*boardHeight); i++) {
+        if (numbers[i-1] != i) inPosition = false;
+      }
+      if (inPosition) alert("COMPLETE!!");
     }
-    if (inPosition) alert("COMPLETE!!");
   }
 
   // On click behaviour
-  var blankLeft = tileSize * (boardWidth - 1);
-  var blankTop = tileSize * (boardHeight - 1);
-
   $('.piece').click(function() {
-    var id = $(this).text();
-
-    tileLeft = Number($(this).css('left').slice(0, -2));
-    tileTop = Number($(this).css('top').slice(0, -2));
-
-    move = 'none';
-    if (tileLeft == blankLeft && tileTop == blankTop + tileSize) move = 'up';
-    if (tileLeft == blankLeft && tileTop == blankTop - tileSize) move = 'down';
-    if (tileLeft == blankLeft + tileSize && tileTop == blankTop) move = 'left';
-    if (tileLeft == blankLeft - tileSize && tileTop == blankTop) move = 'right';
-
-    if (move == 'up') {
-      //console.log("Moving up!");
-      $(this).animate({top:"-="+tileSize},
-                      {duaration: moveSpeed,
-                       complete: testComplete});
-      blankTop += tileSize;
-      tilePositions[id] -= boardWidth;
-    } else if (move == 'down') {
-      //console.log("Moving down!");
-      $(this).animate({top:"+="+tileSize},
-                      {duaration: moveSpeed,
-                       complete: testComplete});
-      blankTop -= tileSize;
-      tilePositions[id] += boardWidth;
-    } else if (move == 'left') {
-      //console.log("Moving left!");
-      $(this).animate({left:"-="+tileSize},
-                      {duaration: moveSpeed,
-                       complete: testComplete});
-      blankLeft += tileSize;
-      tilePositions[id] -= 1;
-    } else if (move == 'right') {
-      //console.log("Moving right!");
-      $(this).animate({left:"+="+tileSize},
-                      {duaration: moveSpeed,
-                       complete: testComplete});
-      blankLeft -= tileSize;
-      tilePositions[id] += 1;
-    }
+    var num = $(this).text();
+    var move = moveTile(num, true);
 
     // Increment click counter
     if(move != 'none')
-      $('#move_num').text(Number($('#move_num').text()) + 1);
-
-    //console.log("tileLeft:", tileLeft, "blankLeft:", blankLeft);
-    //console.log("tileTop:", tileTop, "blankTop:", blankTop);
-    //console.log("Move:", move);
-    console.log(tilePositions);
+      $('#move_num').text(++movesMade);
   });
 });
 </script>
